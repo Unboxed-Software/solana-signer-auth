@@ -1,3 +1,5 @@
+use std::io::Sink;
+
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
@@ -32,6 +34,11 @@ pub mod signer_check {
         token::transfer(cpi_ctx, amount)?;
         Ok(())
     }
+
+    pub fn update_authority(ctx: Context<UpdateAuthority>) -> Result<()> {
+        ctx.accounts.vault.authority = ctx.accounts.new_authority.key();
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -64,8 +71,8 @@ pub struct Withdraw<'info> {
     #[account(
         seeds = [b"vault"],
         bump,
-        // has_one = token_account,
-        // has_one = authority
+        has_one = token_account,
+        has_one = authority
     )]
     pub vault: Account<'info, Vault>,
     #[account(mut)]
@@ -76,6 +83,17 @@ pub struct Withdraw<'info> {
     #[account(mut)]
     /// CHECK:
     pub authority: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateAuthority<'info> {
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub vault: Account<'info, Vault>,
+    pub new_authority: SystemAccount<'info>,
+    pub authority: Signer<'info>,
 }
 
 #[account]

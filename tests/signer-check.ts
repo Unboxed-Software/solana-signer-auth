@@ -89,4 +89,18 @@ describe("signer-check", () => {
     const tokenAfter = await spl.getAccount(connection, tokenAccount.publicKey)
     console.log(tokenAfter.amount)
   })
+
+  it("Update Authority", async () => {
+    await program.methods
+      .updateAuthority()
+      .accounts({
+        vault: vaultPDA,
+        newAuthority: walletFake.publicKey,
+        authority: wallet.publicKey,
+      })
+      .rpc()
+
+    const vault = await program.account.vault.fetch(vaultPDA)
+    console.log(vault.authority.toString())
+  })
 })

@@ -1,12 +1,10 @@
-use std::io::Sink;
-
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
-pub mod signer_check {
+pub mod signer_authorization {
     use super::*;
 
     pub fn initialize_vault(ctx: Context<InitializeVault>) -> Result<()> {
@@ -15,7 +13,7 @@ pub mod signer_check {
         Ok(())
     }
 
-    pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
+    pub fn insecure_withdraw(ctx: Context<InsecureWithdraw>) -> Result<()> {
         let amount = ctx.accounts.token_account.amount;
 
         let seeds = &[b"vault".as_ref(), &[*ctx.bumps.get("vault").unwrap()]];
@@ -35,8 +33,23 @@ pub mod signer_check {
         Ok(())
     }
 
-    pub fn update_authority(ctx: Context<UpdateAuthority>) -> Result<()> {
-        ctx.accounts.vault.authority = ctx.accounts.new_authority.key();
+    pub fn secure_withdraw(ctx: Context<SecureWithdraw>) -> Result<()> {
+        let amount = ctx.accounts.token_account.amount;
+
+        let seeds = &[b"vault".as_ref(), &[*ctx.bumps.get("vault").unwrap()]];
+        let signer = [&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token::Transfer {
+                from: ctx.accounts.token_account.to_account_info(),
+                authority: ctx.accounts.vault.to_account_info(),
+                to: ctx.accounts.withdraw_destination.to_account_info(),
+            },
+            &signer,
+        );
+
+        token::transfer(cpi_ctx, amount)?;
         Ok(())
     }
 }
@@ -67,7 +80,7 @@ pub struct InitializeVault<'info> {
 }
 
 #[derive(Accounts)]
-pub struct Withdraw<'info> {
+pub struct InsecureWithdraw<'info> {
     #[account(
         seeds = [b"vault"],
         bump,
@@ -80,19 +93,24 @@ pub struct Withdraw<'info> {
     #[account(mut)]
     pub withdraw_destination: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
-    #[account(mut)]
-    /// CHECK:
-    pub authority: AccountInfo<'info>,
+    /// CHECK: demo missing signer check
+    pub authority: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
-pub struct UpdateAuthority<'info> {
+pub struct SecureWithdraw<'info> {
     #[account(
-        mut,
+        seeds = [b"vault"],
+        bump,
+        has_one = token_account,
         has_one = authority
     )]
     pub vault: Account<'info, Vault>,
-    pub new_authority: SystemAccount<'info>,
+    #[account(mut)]
+    pub token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub withdraw_destination: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
     pub authority: Signer<'info>,
 }
 

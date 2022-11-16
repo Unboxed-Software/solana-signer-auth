@@ -1,15 +1,17 @@
 import * as anchor from "@project-serum/anchor"
 import * as spl from "@solana/spl-token"
 import { Program } from "@project-serum/anchor"
-import { SignerCheck } from "../target/types/signer_check"
+import { SignerAuthorization } from "../target/types/signer_authorization"
 import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey"
+import { expect } from "chai"
 
-describe("signer-check", () => {
+describe("signer-authorization", () => {
   anchor.setProvider(anchor.AnchorProvider.env())
 
-  const program = anchor.workspace.SignerCheck as Program<SignerCheck>
+  const program = anchor.workspace
+    .SignerAuthorization as Program<SignerAuthorization>
   const connection = anchor.getProvider().connection
-  const wallet = anchor.workspace.SignerCheck.provider.wallet
+  const wallet = anchor.workspace.SignerAuthorization.provider.wallet
   const walletFake = anchor.web3.Keypair.generate()
   const tokenAccount = anchor.web3.Keypair.generate()
 
@@ -27,7 +29,7 @@ describe("signer-check", () => {
       wallet.payer,
       wallet.publicKey,
       null,
-      1
+      0
     )
 
     withdrawDestinationFake = await spl.createAccount(
@@ -66,19 +68,19 @@ describe("signer-check", () => {
       wallet.payer,
       100
     )
+
+    const balance = await connection.getTokenAccountBalance(
+      tokenAccount.publicKey
+    )
+    expect(balance.value.uiAmount).to.eq(100)
   })
 
-  it("Withdraw", async () => {
-    const vault = await program.account.vault.fetch(vaultPDA)
-
-    const tokenBefore = await spl.getAccount(connection, tokenAccount.publicKey)
-    console.log(tokenBefore.amount)
-
+  it("Insecure withdraw", async () => {
     const tx = await program.methods
-      .withdraw()
+      .insecureWithdraw()
       .accounts({
         vault: vaultPDA,
-        tokenAccount: vault.tokenAccount,
+        tokenAccount: tokenAccount.publicKey,
         withdrawDestination: withdrawDestinationFake,
         authority: wallet.publicKey,
       })
@@ -86,21 +88,28 @@ describe("signer-check", () => {
 
     await anchor.web3.sendAndConfirmTransaction(connection, tx, [walletFake])
 
-    const tokenAfter = await spl.getAccount(connection, tokenAccount.publicKey)
-    console.log(tokenAfter.amount)
+    const balance = await connection.getTokenAccountBalance(
+      tokenAccount.publicKey
+    )
+    expect(balance.value.uiAmount).to.eq(0)
   })
 
-  it("Update Authority", async () => {
-    await program.methods
-      .updateAuthority()
-      .accounts({
-        vault: vaultPDA,
-        newAuthority: walletFake.publicKey,
-        authority: wallet.publicKey,
-      })
-      .rpc()
+  it("Secure withdraw", async () => {
+    try {
+      const tx = await program.methods
+        .secureWithdraw()
+        .accounts({
+          vault: vaultPDA,
+          tokenAccount: tokenAccount.publicKey,
+          withdrawDestination: withdrawDestinationFake,
+          authority: wallet.publicKey,
+        })
+        .transaction()
 
-    const vault = await program.account.vault.fetch(vaultPDA)
-    console.log(vault.authority.toString())
+      await anchor.web3.sendAndConfirmTransaction(connection, tx, [walletFake])
+    } catch (err) {
+      expect(err)
+      console.log(err)
+    }
   })
 })

@@ -1,12 +1,12 @@
 [package]
-name = "signer-check"
+name = "signer-authorization"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "signer_check"
+name = "signer_authorization"
 
 [features]
 no-entrypoint = []

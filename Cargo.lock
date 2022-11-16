@@ -1139,7 +1139,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "signer-check"
+name = "signer-authorization"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",

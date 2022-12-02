@@ -74,4 +74,42 @@ describe("signer-authorization", () => {
     )
     expect(balance.value.uiAmount).to.eq(100)
   })
+
+  it("Insecure withdraw", async () => {
+    const tx = await program.methods
+      .insecureWithdraw()
+      .accounts({
+        vault: vaultPDA,
+        tokenAccount: tokenAccount.publicKey,
+        withdrawDestination: withdrawDestinationFake,
+        authority: wallet.publicKey,
+      })
+      .transaction()
+
+    await anchor.web3.sendAndConfirmTransaction(connection, tx, [walletFake])
+
+    const balance = await connection.getTokenAccountBalance(
+      tokenAccount.publicKey
+    )
+    expect(balance.value.uiAmount).to.eq(0)
+  })
+
+  it("Secure withdraw", async () => {
+    try {
+      const tx = await program.methods
+        .secureWithdraw()
+        .accounts({
+          vault: vaultPDA,
+          tokenAccount: tokenAccount.publicKey,
+          withdrawDestination: withdrawDestinationFake,
+          authority: wallet.publicKey,
+        })
+        .transaction()
+
+      await anchor.web3.sendAndConfirmTransaction(connection, tx, [walletFake])
+    } catch (err) {
+      expect(err)
+      console.log(err)
+    }
+  })
 })

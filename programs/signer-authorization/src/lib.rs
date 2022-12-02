@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("5Dq34FwE7nooJiTVMUH984SasX7D6Qu5HmfYbjgPfXsC");
 
 #[program]
 pub mod signer_authorization {

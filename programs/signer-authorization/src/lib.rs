@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("AJKGDWGif3cCbAWy7xdzFdkNkcZgGYQzEDfLVeksL1Wg");
 
 #[program]
 pub mod signer_authorization {
@@ -15,8 +15,7 @@ pub mod signer_authorization {
 
     pub fn insecure_withdraw(ctx: Context<InsecureWithdraw>) -> Result<()> {
         let amount = ctx.accounts.token_account.amount;
-
-        let seeds = &[b"vault".as_ref(), &[*ctx.bumps.get("vault").unwrap()]];
+        let seeds = &[b"vault".as_ref(), &[ctx.bumps.vault]];
         let signer = [&seeds[..]];
 
         let cpi_ctx = CpiContext::new_with_signer(
@@ -28,7 +27,6 @@ pub mod signer_authorization {
             },
             &signer,
         );
-
         token::transfer(cpi_ctx, amount)?;
         Ok(())
     }
@@ -37,7 +35,9 @@ pub mod signer_authorization {
 #[derive(Accounts)]
 pub struct InitializeVault<'info> {
     #[account(
-        init,
+        // We use init_if_needed here for the test. Otherwise, the test will result in an error "Already in use" after testing once.
+        // Use "init" if you want to ensure that the "initialize_vault" function runs only once.
+        init_if_needed, 
         payer = authority,
         space = 8 + 32 + 32,
         seeds = [b"vault"],

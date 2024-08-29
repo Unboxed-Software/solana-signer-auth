@@ -3,6 +3,8 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
 declare_id!("AJKGDWGif3cCbAWy7xdzFdkNkcZgGYQzEDfLVeksL1Wg");
 
+const DISCRIMINATOR_SIZE:usize = 8;
+
 #[program]
 pub mod signer_authorization {
     use super::*;
@@ -39,7 +41,7 @@ pub struct InitializeVault<'info> {
         // Use "init" if you want to ensure that the "initialize_vault" function runs only once.
         init_if_needed, 
         payer = authority,
-        space = 8 + 32 + 32,
+        space = DISCRIMINATOR_SIZE + Vault::INIT_SPACE,
         seeds = [b"vault"],
         bump
     )]
@@ -78,6 +80,7 @@ pub struct InsecureWithdraw<'info> {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct Vault {
     token_account: Pubkey,
     authority: Pubkey,

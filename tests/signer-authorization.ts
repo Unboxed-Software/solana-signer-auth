@@ -48,7 +48,7 @@ describe("signer-authorization", () => {
     );
   });
 
-  it("Initialize Vault", async () => {
+  it("initializeVault should be success", async () => {
     await program.methods
       .initializeVault()
       .accounts({

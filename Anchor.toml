@@ -1,14 +1,17 @@
+[toolchain]
+
 [features]
-seeds = false
+resolution = true
 skip-lint = false
+
 [programs.localnet]
-signer_authorization = "5Dq34FwE7nooJiTVMUH984SasX7D6Qu5HmfYbjgPfXsC"
+signer_authorization = "3F8cse6QbsKmqKG3KaQky5WP4k78Tm1xt2uZZWLDFDqc"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

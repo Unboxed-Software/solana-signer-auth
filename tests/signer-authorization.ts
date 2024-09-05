@@ -2,8 +2,18 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { SignerAuthorization } from "../target/types/signer_authorization";
 import { expect } from "chai";
-import { createMint, createAccount, mintTo, getAccount } from "@solana/spl-token";
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import {
+  createMint,
+  createAccount,
+  mintTo,
+  getAccount,
+} from "@solana/spl-token";
+import {
+  Connection,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+} from "@solana/web3.js";
 import { airdropIfRequired } from "@solana-developers/helpers";
 
 // Set up Anchor
@@ -12,7 +22,8 @@ const provider = anchor.AnchorProvider.env();
 const connection = provider.connection;
 const wallet = provider.wallet as anchor.Wallet;
 
-const program = anchor.workspace.SignerAuthorization as Program<SignerAuthorization>;
+const program = anchor.workspace
+  .SignerAuthorization as Program<SignerAuthorization>;
 
 const walletFake = Keypair.generate();
 const tokenAccount = Keypair.generate();
@@ -43,7 +54,12 @@ describe("signer-authorization", () => {
         walletFake.publicKey
       );
 
-      await airdropIfRequired(connection, walletFake.publicKey, 1 * LAMPORTS_PER_SOL, 1 * LAMPORTS_PER_SOL);
+      await airdropIfRequired(
+        connection,
+        walletFake.publicKey,
+        1 * LAMPORTS_PER_SOL,
+        1 * LAMPORTS_PER_SOL
+      );
     } catch (error) {
       throw new Error(`Failed to set up test: ${error.message}`);
     }
@@ -70,7 +86,10 @@ describe("signer-authorization", () => {
         100
       );
 
-      const tokenAccountInfo = await getAccount(connection, tokenAccount.publicKey);
+      const tokenAccountInfo = await getAccount(
+        connection,
+        tokenAccount.publicKey
+      );
       expect(tokenAccountInfo.amount).to.equal(100n);
     } catch (error) {
       throw new Error(`Failed to initialize vault: ${error.message}`);

@@ -30,7 +30,6 @@ pub mod signer_authorization {
             },
             &signer,
         );
-
         token::transfer(cpi_ctx, amount)?;
         Ok(())
     }
@@ -39,8 +38,9 @@ pub mod signer_authorization {
 #[derive(Accounts)]
 pub struct InitializeVault<'info> {
     #[account(
-        init,
+        init, 
         payer = authority,
+        space = DISCRIMINATOR_SIZE + Vault::INIT_SPACE,
         space = DISCRIMINATOR_SIZE + Vault::INIT_SPACE,
         seeds = [b"vault"],
         bump
@@ -80,7 +80,7 @@ pub struct InsecureWithdraw<'info> {
 }
 
 #[account]
-#[derive(Default, InitSpace)]
+#[derive(InitSpace)]
 pub struct Vault {
     token_account: Pubkey,
     authority: Pubkey,

@@ -41,7 +41,6 @@ pub struct InitializeVault<'info> {
         init, 
         payer = authority,
         space = DISCRIMINATOR_SIZE + Vault::INIT_SPACE,
-        space = DISCRIMINATOR_SIZE + Vault::INIT_SPACE,
         seeds = [b"vault"],
         bump
     )]

@@ -8,132 +8,138 @@ import {
   mintTo,
   getAccount,
 } from "@solana/spl-token";
-import {
-  Connection,
-  Keypair,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-} from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { airdropIfRequired } from "@solana-developers/helpers";
 
-// Set up Anchor
-anchor.AnchorProvider.env().opts.commitment = "confirmed";
-const provider = anchor.AnchorProvider.env();
-const connection = provider.connection;
-const wallet = provider.wallet as anchor.Wallet;
+describe("Signer Authorization", () => {
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
 
-const program = anchor.workspace
-  .SignerAuthorization as Program<SignerAuthorization>;
+  const program = anchor.workspace
+    .SignerAuthorization as Program<SignerAuthorization>;
+  const connection = provider.connection;
+  const walletAuthority = provider.wallet as anchor.Wallet;
 
-const walletFake = Keypair.generate();
-const tokenAccount = Keypair.generate();
+  const unauthorizedWallet = Keypair.generate();
+  const vaultTokenAccount = Keypair.generate();
 
-const [vaultPDA] = PublicKey.findProgramAddressSync(
-  [Buffer.from("vault")],
-  program.programId
-);
+  const VAULT_SEED = "vault";
+  const [vaultPDA] = PublicKey.findProgramAddressSync(
+    [Buffer.from(VAULT_SEED)],
+    program.programId
+  );
 
-let mint: PublicKey;
-let withdrawDestinationFake: PublicKey;
+  let tokenMint: PublicKey;
+  let unauthorizedWithdrawDestination: PublicKey;
 
-describe("signer-authorization", () => {
+  const INITIAL_AIRDROP_AMOUNT = 1 * LAMPORTS_PER_SOL;
+  const MINIMUM_BALANCE_FOR_RENT_EXEMPTION = 1 * LAMPORTS_PER_SOL;
+  const INITIAL_TOKEN_AMOUNT = 100;
+
   before(async () => {
     try {
-      mint = await createMint(
+      tokenMint = await createMint(
         connection,
-        wallet.payer,
-        wallet.publicKey,
+        walletAuthority.payer,
+        walletAuthority.publicKey,
         null,
         0
       );
 
-      withdrawDestinationFake = await createAccount(
+      unauthorizedWithdrawDestination = await createAccount(
         connection,
-        wallet.payer,
-        mint,
-        walletFake.publicKey
+        walletAuthority.payer,
+        tokenMint,
+        unauthorizedWallet.publicKey
       );
 
       await airdropIfRequired(
         connection,
-        walletFake.publicKey,
-        1 * LAMPORTS_PER_SOL,
-        1 * LAMPORTS_PER_SOL
+        unauthorizedWallet.publicKey,
+        INITIAL_AIRDROP_AMOUNT,
+        MINIMUM_BALANCE_FOR_RENT_EXEMPTION
       );
     } catch (error) {
-      throw new Error(`Failed to set up test: ${error.message}`);
+      console.error("Test setup failed:", error);
+      throw error;
     }
   });
 
-  it("initializes vault", async () => {
+  it("initializes vault and mints tokens", async () => {
     try {
       await program.methods
         .initializeVault()
         .accounts({
           vault: vaultPDA,
-          tokenAccount: tokenAccount.publicKey,
-          mint: mint,
-          authority: wallet.publicKey,
+          tokenAccount: vaultTokenAccount.publicKey,
+          mint: tokenMint,
+          authority: walletAuthority.publicKey,
         })
-        .signers([tokenAccount])
+        .signers([vaultTokenAccount])
         .rpc();
 
       await mintTo(
         connection,
-        wallet.payer,
-        mint,
-        tokenAccount.publicKey,
-        wallet.payer,
-        100
+        walletAuthority.payer,
+        tokenMint,
+        vaultTokenAccount.publicKey,
+        walletAuthority.payer,
+        INITIAL_TOKEN_AMOUNT
       );
 
       const tokenAccountInfo = await getAccount(
         connection,
-        tokenAccount.publicKey
+        vaultTokenAccount.publicKey
       );
-      expect(tokenAccountInfo.amount).to.equal(100n);
+      expect(Number(tokenAccountInfo.amount)).to.equal(INITIAL_TOKEN_AMOUNT);
     } catch (error) {
-      throw new Error(`Failed to initialize vault: ${error.message}`);
+      console.error("Vault initialization failed:", error);
+      throw error;
     }
   });
 
   it("performs insecure withdraw", async () => {
     try {
-      const tx = await program.methods
+      const transaction = await program.methods
         .insecureWithdraw()
         .accounts({
           vault: vaultPDA,
-          tokenAccount: tokenAccount.publicKey,
-          withdrawDestination: withdrawDestinationFake,
-          authority: wallet.publicKey,
+          tokenAccount: vaultTokenAccount.publicKey,
+          withdrawDestination: unauthorizedWithdrawDestination,
+          authority: walletAuthority.publicKey,
         })
         .transaction();
 
-      await anchor.web3.sendAndConfirmTransaction(connection, tx, [walletFake]);
+      await anchor.web3.sendAndConfirmTransaction(connection, transaction, [
+        unauthorizedWallet,
+      ]);
 
       const tokenAccountInfo = await getAccount(
         connection,
-        tokenAccount.publicKey
+        vaultTokenAccount.publicKey
       );
-      expect(tokenAccountInfo.amount).to.equal(0n);
+      expect(Number(tokenAccountInfo.amount)).to.equal(0);
     } catch (error) {
-      throw new Error(`Failed to perform insecure withdraw: ${error.message}`);
+      console.error("Insecure withdraw failed:", error);
+      throw error;
     }
   });
 
   it("fails to perform secure withdraw with incorrect signer", async () => {
     try {
-      const tx = await program.methods
+      const transaction = await program.methods
         .secureWithdraw()
         .accounts({
           vault: vaultPDA,
-          tokenAccount: tokenAccount.publicKey,
-          withdrawDestination: withdrawDestinationFake,
-          authority: wallet.publicKey,
+          tokenAccount: vaultTokenAccount.publicKey,
+          withdrawDestination: unauthorizedWithdrawDestination,
+          authority: walletAuthority.publicKey,
         })
         .transaction();
 
-      await anchor.web3.sendAndConfirmTransaction(connection, tx, [walletFake]);
+      await anchor.web3.sendAndConfirmTransaction(connection, transaction, [
+        unauthorizedWallet,
+      ]);
       throw new Error("Expected transaction to fail, but it succeeded");
     } catch (error) {
       expect(error).to.be.an("error");

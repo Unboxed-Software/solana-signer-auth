@@ -1,7 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("AJKGDWGif3cCbAWy7xdzFdkNkcZgGYQzEDfLVeksL1Wg");
+
+const DISCRIMINATOR_SIZE:usize = 8;
 
 #[program]
 pub mod signer_authorization {
@@ -15,8 +17,7 @@ pub mod signer_authorization {
 
     pub fn insecure_withdraw(ctx: Context<InsecureWithdraw>) -> Result<()> {
         let amount = ctx.accounts.token_account.amount;
-
-        let seeds = &[b"vault".as_ref(), &[*ctx.bumps.get("vault").unwrap()]];
+        let seeds = &[b"vault".as_ref(), &[ctx.bumps.vault]];
         let signer = [&seeds[..]];
 
         let cpi_ctx = CpiContext::new_with_signer(
@@ -28,7 +29,6 @@ pub mod signer_authorization {
             },
             &signer,
         );
-
         token::transfer(cpi_ctx, amount)?;
         Ok(())
     }
@@ -37,9 +37,9 @@ pub mod signer_authorization {
 #[derive(Accounts)]
 pub struct InitializeVault<'info> {
     #[account(
-        init,
+        init, 
         payer = authority,
-        space = 8 + 32 + 32,
+        space = DISCRIMINATOR_SIZE + Vault::INIT_SPACE,
         seeds = [b"vault"],
         bump
     )]
@@ -78,6 +78,7 @@ pub struct InsecureWithdraw<'info> {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct Vault {
     token_account: Pubkey,
     authority: Pubkey,

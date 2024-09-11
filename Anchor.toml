@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-signer_authorization = "5wstMUJETQvFESyvDLenq8Poe3RMY5Xdho7pWVBvaoED"
+signer_authorization = "FeKh59XMh6BcN6UdekHnaFHsNH9NVE121GgDzSyYPKKS"
 
 [registry]
 url = "https://api.apr.dev"
@@ -15,4 +15,4 @@ cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "yarn run ts-mocha -r tsx -p ./tsconfig.json -t 1000000 tests/**/*.ts"

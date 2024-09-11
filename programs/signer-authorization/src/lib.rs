@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
-declare_id!("5wstMUJETQvFESyvDLenq8Poe3RMY5Xdho7pWVBvaoED");
+declare_id!("FeKh59XMh6BcN6UdekHnaFHsNH9NVE121GgDzSyYPKKS");
 
-const DISCRIMINATOR_SIZE:usize = 8;
+pub const DISCRIMINATOR_SIZE: usize = 8;
 
 #[program]
 pub mod signer_authorization {

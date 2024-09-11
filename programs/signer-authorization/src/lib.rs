@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
-declare_id!("3F8cse6QbsKmqKG3KaQky5WP4k78Tm1xt2uZZWLDFDqc");
+declare_id!("FeKh59XMh6BcN6UdekHnaFHsNH9NVE121GgDzSyYPKKS");
 
-const DISCRIMINATOR_SIZE:usize = 8;
+pub const DISCRIMINATOR_SIZE: usize = 8;
 
 #[program]
 pub mod signer_authorization {
@@ -17,6 +17,7 @@ pub mod signer_authorization {
 
     pub fn insecure_withdraw(ctx: Context<InsecureWithdraw>) -> Result<()> {
         let amount = ctx.accounts.token_account.amount;
+
         let seeds = &[b"vault".as_ref(), &[ctx.bumps.vault]];
         let signer = [&seeds[..]];
 

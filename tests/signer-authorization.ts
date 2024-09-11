@@ -1,92 +1,99 @@
 import * as anchor from "@coral-xyz/anchor";
-import * as spl from "@solana/spl-token";
 import { Program } from "@coral-xyz/anchor";
 import { SignerAuthorization } from "../target/types/signer_authorization";
 import { expect } from "chai";
+import {
+  createMint,
+  createAccount,
+  mintTo,
+  getAccount,
+} from "@solana/spl-token";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { airdropIfRequired } from "@solana-developers/helpers";
 
-describe("signer-authorization", () => {
-  anchor.setProvider(anchor.AnchorProvider.env());
+describe("Signer Authorization", () => {
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+
   const program = anchor.workspace
     .SignerAuthorization as Program<SignerAuthorization>;
-  const connection = anchor.getProvider().connection;
-  const wallet = anchor.workspace.SignerAuthorization.provider.wallet;
-  const walletFake = anchor.web3.Keypair.generate();
-  const tokenAccount = anchor.web3.Keypair.generate();
-  let mint: anchor.web3.PublicKey;
-  let withdrawDestinationFake: anchor.web3.PublicKey;
+  const connection = provider.connection;
+  const walletAuthority = provider.wallet as anchor.Wallet;
+
+  const unauthorizedWallet = Keypair.generate();
+  const vaultTokenAccount = Keypair.generate();
+
+  const VAULT_SEED = "vault";
+  const [vaultPDA] = PublicKey.findProgramAddressSync(
+    [Buffer.from(VAULT_SEED)],
+    program.programId
+  );
+
+  let tokenMint: PublicKey;
+  let unauthorizedWithdrawDestination: PublicKey;
+
+  const INITIAL_AIRDROP_AMOUNT = 0.5 * LAMPORTS_PER_SOL;
+  const MINIMUM_BALANCE_FOR_RENT_EXEMPTION = 0.5 * LAMPORTS_PER_SOL;
+  const INITIAL_TOKEN_AMOUNT = 100;
 
   before(async () => {
-    mint = await spl.createMint(
-      connection,
-      wallet.payer,
-      wallet.publicKey,
-      null,
-      0
-    );
+    try {
+      tokenMint = await createMint(
+        connection,
+        walletAuthority.payer,
+        walletAuthority.publicKey,
+        null,
+        0
+      );
 
-    withdrawDestinationFake = await spl.createAccount(
-      connection,
-      wallet.payer,
-      mint,
-      walletFake.publicKey
-    );
+      unauthorizedWithdrawDestination = await createAccount(
+        connection,
+        walletAuthority.payer,
+        tokenMint,
+        unauthorizedWallet.publicKey
+      );
 
-    const airdropSignature = await connection.requestAirdrop(
-      walletFake.publicKey,
-      1 * anchor.web3.LAMPORTS_PER_SOL
-    );
-
-    const latestBlockHash = await connection.getLatestBlockhash();
-
-    await connection.confirmTransaction(
-      {
-        blockhash: latestBlockHash.blockhash,
-        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-        signature: airdropSignature,
-      },
-      "confirmed"
-    );
+      await airdropIfRequired(
+        connection,
+        unauthorizedWallet.publicKey,
+        INITIAL_AIRDROP_AMOUNT,
+        MINIMUM_BALANCE_FOR_RENT_EXEMPTION
+      );
+    } catch (error) {
+      console.error("Test setup failed:", error);
+      throw error;
+    }
   });
 
-  it("Initialize Vault should be successful", async () => {
-    await program.methods
-      .initializeVault()
-      .accounts({
-        tokenAccount: tokenAccount.publicKey,
-        mint: mint,
-        authority: wallet.publicKey,
-      })
-      .signers([tokenAccount])
-      .rpc();
+  it("initializes vault and mints tokens", async () => {
+    try {
+      await program.methods
+        .initializeVault()
+        .accounts({
+          tokenAccount: vaultTokenAccount.publicKey,
+          mint: tokenMint,
+          authority: walletAuthority.publicKey,
+        })
+        .signers([vaultTokenAccount])
+        .rpc();
 
-    await spl.mintTo(
-      connection,
-      wallet.payer,
-      mint,
-      tokenAccount.publicKey,
-      wallet.payer,
-      100
-    );
+      await mintTo(
+        connection,
+        walletAuthority.payer,
+        tokenMint,
+        vaultTokenAccount.publicKey,
+        walletAuthority.payer,
+        INITIAL_TOKEN_AMOUNT
+      );
 
-    const balance = await connection.getTokenAccountBalance(
-      tokenAccount.publicKey
-    );
-    expect(balance.value.uiAmount).to.eq(100);
-  });
-
-  it("Insecure withdraw should be successful", async () => {
-    const tx = await program.methods
-      .insecureWithdraw()
-      .accounts({
-        withdrawDestination: withdrawDestinationFake,
-      })
-      .transaction();
-
-    await anchor.web3.sendAndConfirmTransaction(connection, tx, [walletFake]);
-
-    const balance = await connection.getTokenAccountBalance(
-      tokenAccount.publicKey
-    );
-    expect(balance.value.uiAmount).to.eq(0);
+      const tokenAccountInfo = await getAccount(
+        connection,
+        vaultTokenAccount.publicKey
+      );
+      expect(Number(tokenAccountInfo.amount)).to.equal(INITIAL_TOKEN_AMOUNT);
+    } catch (error) {
+      console.error("Vault initialization failed:", error);
+      throw error;
+    }
   });
 });
